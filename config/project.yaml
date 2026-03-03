@@ -1,0 +1,17 @@
+project_name: aeromap_f3
+timezone: Europe/Paris
+
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+
+output:
+  models_dir: models
+  reports_dir: reports
+
+clean_lap_rules:
+  min_lap_time_s: null
+  max_lap_time_s: null
+  exclude_in_out_laps: true
+  exclude_yellow_flag_laps: true
+  exclude_track_limits_laps: true

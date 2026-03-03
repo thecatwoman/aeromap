@@ -1,0 +1,30 @@
+# Data
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.feather
+
+# Model artifacts
+models/
+*.pkl
+*.joblib
+*.onnx
+
+# Python / env
+__pycache__/
+*.pyc
+.venv/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Editors
+.vscode/

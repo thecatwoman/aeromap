@@ -15,6 +15,7 @@ models/
 __pycache__/
 *.pyc
 .venv/
+.matplotlib/
 
 # Notebooks
 .ipynb_checkpoints/

@@ -1,10 +1,6 @@
 import pandas as pd
 from typing import Callable
 
-
-# ============================================================
-# CONFIG
-# ============================================================
 MIN_POINTS = 100
 TOL_SPEED = 2.5
 
@@ -13,11 +9,6 @@ LONG_COL = "avg_accx"
 SPEED_COL = "carspeed_art"
 
 
-# ============================================================
-# ROW VALIDATORS
-# ------------------------------------------------------------
-# These mirror your VBA helper functions exactly.
-# ============================================================
 def is_row_valid_for_straight(row: pd.Series) -> bool:
     lat_acc = row[LAT_COL]
     long_acc = row[LONG_COL]
@@ -99,20 +90,6 @@ def keep_constant_speed_subruns(
     return kept
 
 
-# ============================================================
-# CORE RUN DETECTOR
-# ------------------------------------------------------------
-# This is the direct Python equivalent of the VBA loops.
-#
-# Logic:
-# - start at row i
-# - if row i is valid, store ref_speed = speed[i]
-# - continue while:
-#     * row is valid
-#     * abs(speed - ref_speed) <= tol_speed
-# - if run length >= min_points, keep it
-# - else discard it
-# ============================================================
 def detect_consecutive_runs(
     df: pd.DataFrame,
     validator: Callable[[pd.Series], bool],
@@ -156,16 +133,6 @@ def detect_consecutive_runs(
     return labels
 
 
-# ============================================================
-# APPLY MACRO-STYLE SEGMENTATION
-# ------------------------------------------------------------
-# This reproduces the Excel macro logic in Python.
-#
-# Important:
-# A row can theoretically qualify for more than one pass if rules
-# overlap, so we apply priority when combining labels.
-# The VBA wrote to separate columns; here we combine them into one.
-# ============================================================
 def apply_segmentation_macro_style(
     df: pd.DataFrame,
     min_points: int = MIN_POINTS,

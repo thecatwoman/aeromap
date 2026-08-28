@@ -1,0 +1,372 @@
+# How To Run This Project
+
+This file is the practical runbook for the current Aeromap workflow as of August 28, 2026.
+
+It focuses on the commands actually used in this repository today:
+
+- build the real-data baseline
+- run pitlane validation
+- build ML datasets
+- train push-offset ML models
+- apply real push offsets
+- regenerate and inspect plots
+
+## 1. Project Assumptions
+
+This project expects raw and processed data in the repository structure already used by the codebase.
+
+Important directories:
+
+- `data/raw/Barcelona_2026/Test/Run_<run_number>/`
+- `data/processed/Run_<run_number>/`
+- `data/processed/SimuData/`
+- `data/processed/tables/`
+- `data/processed/plots/`
+
+Run selection is controlled by the environment variable `AEROMAP_RUN`.
+
+If `AEROMAP_RUN` is not set, the default run is taken from [src/run_paths.py](/Users/nini/Projects/aeromap/src/run_paths.py:6).
+
+## 2. Python Environment
+
+Use the project virtual environment:
+
+```bash
+.venv/bin/python
+```
+
+If you want to run a command for a specific run without editing code:
+
+```bash
+AEROMAP_RUN=46 .venv/bin/python -m src.data.baseline_real_pipeline
+```
+
+## 3. Main Entry Points
+
+### Build cleaned real dataset
+
+```bash
+.venv/bin/python -m src.data.build_dataset --source real
+```
+
+### Build cleaned simulation dataset
+
+```bash
+.venv/bin/python -m src.data.build_simudata_dataset
+```
+
+### Run official real segmentation
+
+```bash
+.venv/bin/python -m src.segment_with_macroway --source real
+```
+
+### Run official simulation segmentation
+
+```bash
+.venv/bin/python -m src.segment_simu_with_macroway
+```
+
+## 4. Frozen Baseline Workflow
+
+The trusted real-data baseline is created with:
+
+```bash
+.venv/bin/python -m src.data.baseline_real_pipeline
+```
+
+This pipeline does the following:
+
+1. Builds the cleaned merged real dataset
+2. Merges SCz source data
+3. Recalculates:
+   - `scz_push_f_pitot`
+   - `scz_push_r_pitot`
+4. Runs official `macroway` segmentation
+5. Extracts official corner tables
+6. Creates reference-map plots
+7. Freezes the outputs into `Frozen_Baseline`
+
+Key outputs:
+
+- `data/processed/Run_<run_number>/Frozen_Baseline/datasets/`
+- `data/processed/Run_<run_number>/Frozen_Baseline/tables/`
+- `data/processed/Run_<run_number>/Frozen_Baseline/plots/`
+- `data/processed/Run_<run_number>/baseline_real_pipeline_manifest.json`
+
+## 5. Batch Pitlane Validation
+
+Run baseline + pitlane validation across several runs:
+
+```bash
+.venv/bin/python -m src.data.run_pitlane_validation_batch --runs 46 47 48 49 50 --stop-on-failure
+```
+
+This runs:
+
+- `baseline_real_pipeline`
+- pitlane decision tree for:
+  - `fl`
+  - `fr`
+  - `rl`
+  - `rr`
+- independently for:
+  - `slow`
+  - `fast`
+
+Logs are written to:
+
+```text
+data/processed/pitlane_validation_batch_logs/
+```
+
+### Manual pitlane decision tree
+
+Example:
+
+```bash
+AEROMAP_RUN=46 .venv/bin/python -m src.data.pitlane_decision_tree --channel-set fr --segment-label pit --pit-speed-band slow --min-pit-band-samples 50
+```
+
+Useful arguments:
+
+- `--channel-set fl|fr|rl|rr`
+- `--segment-label pit|straight|corner`
+- `--pit-speed-band slow|fast|both`
+- `--min-pit-band-samples 50`
+
+## 6. ML Dataset And Push Models
+
+### Build the pitlane ML dataset
+
+```bash
+.venv/bin/python -m src.data.build_pitlane_ml_dataset
+```
+
+Main output folder:
+
+```text
+data/processed/ml_datasets/baseline_v1/
+```
+
+Important output:
+
+- `baseline_v1_ml_dataset.csv`
+
+### Train the push-offset ML models
+
+```bash
+.venv/bin/python -m src.data.train_pitlane_ml_models
+```
+
+Model artifacts are written under:
+
+```text
+models/
+```
+
+### Predict push offsets with ML
+
+```bash
+.venv/bin/python -m src.data.predict_push_offset_ml
+```
+
+Main outputs:
+
+- `data/processed/ml_predictions/baseline_v1/baseline_v1_push_ml_predictions.csv`
+- `data/processed/ml_predictions/baseline_v1/baseline_v1_push_ml_predictions_report.md`
+
+## 7. Apply Real Push Offsets
+
+Important convention:
+
+- this project currently offsets **real data toward simulation**
+- it does **not** offset simulation toward real
+
+### Apply direct-delta real push offsets
+
+```bash
+.venv/bin/python -m src.data.apply_real_push_offsets --runs 46 47 48 49 50 --amount-source direct
+```
+
+### Apply ML-predicted real push offsets
+
+```bash
+.venv/bin/python -m src.data.apply_real_push_offsets --runs 46 47 48 49 50 --amount-source ml
+```
+
+This command:
+
+1. Reads from `Frozen_Baseline`
+2. Applies push offsets to real channels only
+3. Recalculates SCz after the offset
+4. Writes new non-destructive output datasets
+
+Output directories:
+
+- direct:
+  - `data/processed/Run_<run_number>/Real_Offset_Applied_Baseline_v1/`
+- ML:
+  - `data/processed/Run_<run_number>/Real_Offset_Applied_Baseline_v1_ML/`
+
+## 8. Plot Push And SCz Overlays
+
+### Full-run overlay
+
+Example:
+
+```bash
+.venv/bin/python -m src.data.plot_real_push_offset_overlays \
+  --runs 46 \
+  --channel-set rl \
+  --signal-kind push \
+  --scope full_run \
+  --full-run-axis global_samples
+```
+
+### Pit-band overlay
+
+Example:
+
+```bash
+.venv/bin/python -m src.data.plot_real_push_offset_overlays \
+  --runs 46 \
+  --channel-set rl \
+  --signal-kind push \
+  --scope pit_band \
+  --pit-speed-band slow
+```
+
+Useful arguments:
+
+- `--channel-set fl|fr|rl|rr`
+- `--signal-kind push|scz`
+- `--scope full_run|pit_band`
+- `--pit-speed-band slow|fast`
+- `--full-run-axis global_samples|distancelap`
+- `--show-delta`
+
+If both direct and ML offset summaries exist, the plotter can compare:
+
+- original real
+- direct-offset real
+- ML-offset real
+- simulation
+
+## 9. Build 3D Reference-Map Tables
+
+### Classic corner-only push SCz tables
+
+```bash
+.venv/bin/python -m src.data.build_push_corner_tables --segmenter macroway
+```
+
+### Plot classic corner-only 3D maps
+
+```bash
+.venv/bin/python -m src.data.plot_push_corner_3d --side both --segmenter macroway
+```
+
+## 10. Build 3D Segment Tables From Offseted Data
+
+This newer workflow supports `corner`, `straight`, or combined segment extraction.
+
+### Build straight-only tables from offseted data
+
+```bash
+.venv/bin/python -m src.data.build_push_segment_tables \
+  --run-number 46 \
+  --amount-source ml \
+  --segment-labels straight
+```
+
+### Build straight-only tables from frozen pre-offset data
+
+```bash
+.venv/bin/python -m src.data.build_push_segment_tables \
+  --run-number 46 \
+  --amount-source frozen \
+  --segment-labels straight
+```
+
+### Plot both on the same 3D reference surface
+
+```bash
+.venv/bin/python -m src.data.plot_push_segment_3d \
+  --run-number 46 \
+  --amount-source ml \
+  --compare-amount-source frozen \
+  --segment-labels straight \
+  --side both
+```
+
+Current color convention in that comparison plot:
+
+- cyan = straight-only from offseted + SCz-recalculated dataset
+- red = straight-only from pre-offset dataset
+
+## 11. Compare Extracted Points To The Reference Surface
+
+To measure whether extracted segment points moved closer to or farther from the reference map:
+
+Front:
+
+```bash
+.venv/bin/python -m src.data.compare_segment_table_to_reference \
+  --side front \
+  --primary-table data/processed/tables/segment_maps/run_46_straight_scz_push_f_pitot_macroway_ml_offset_two_way_table_exact.csv \
+  --compare-table data/processed/tables/segment_maps/run_46_straight_scz_push_f_pitot_macroway_frozen_baseline_two_way_table_exact.csv
+```
+
+Rear:
+
+```bash
+.venv/bin/python -m src.data.compare_segment_table_to_reference \
+  --side rear \
+  --primary-table data/processed/tables/segment_maps/run_46_straight_scz_push_r_pitot_macroway_ml_offset_two_way_table_exact.csv \
+  --compare-table data/processed/tables/segment_maps/run_46_straight_scz_push_r_pitot_macroway_frozen_baseline_two_way_table_exact.csv
+```
+
+## 12. Official Filtering State In Baseline
+
+Current baseline filtering policy:
+
+### Despike only
+
+- `rh_f`
+- `rh_r`
+
+### Butterworth only
+
+- `pitot_c`
+- `damper_fl_art`
+- `damper_fr_art`
+- `damper_rl_art`
+- `damper_rr_art`
+- `pushavg_c`
+- `pushavd_c`
+- `pusharg_c`
+- `pushard_c`
+
+### Neither in baseline
+
+- `pair`
+
+The frozen baseline settings are saved per run in:
+
+```text
+data/processed/Run_<run_number>/Frozen_Baseline/baseline_settings.json
+```
+
+## 13. Recommended Working Order
+
+For a new run or new batch:
+
+1. Build or refresh the baseline
+2. Run pitlane validation
+3. Build or refresh ML datasets
+4. Train push ML models if needed
+5. Predict push offsets
+6. Apply real push offsets
+7. Replot overlays and 3D comparisons
+8. Review audit CSVs and manifests

@@ -1,8 +1,6 @@
 # How To Run This Project
 
-This file is the practical runbook for the current Aeromap workflow as of August 28, 2026.
-
-It focuses on the commands actually used in this repository today:
+the commands actually used in this repository:
 
 - build the real-data baseline
 - run pitlane validation
@@ -156,7 +154,7 @@ Important output:
 ### Train the push-offset ML models
 
 ```bash
-.venv/bin/python -m src.data.train_pitlane_ml_models
+.venv/bin/python -m src.data.train_pitlane_ml_modells
 ```
 
 Model artifacts are written under:
@@ -170,11 +168,6 @@ models/
 ```bash
 .venv/bin/python -m src.data.predict_push_offset_ml
 ```
-
-Main outputs:
-
-- `data/processed/ml_predictions/baseline_v1/baseline_v1_push_ml_predictions.csv`
-- `data/processed/ml_predictions/baseline_v1/baseline_v1_push_ml_predictions_report.md`
 
 ## 7. Apply Real Push Offsets
 
@@ -224,28 +217,6 @@ Example:
   --full-run-axis global_samples
 ```
 
-### Pit-band overlay
-
-Example:
-
-```bash
-.venv/bin/python -m src.data.plot_real_push_offset_overlays \
-  --runs 46 \
-  --channel-set rl \
-  --signal-kind push \
-  --scope pit_band \
-  --pit-speed-band slow
-```
-
-Useful arguments:
-
-- `--channel-set fl|fr|rl|rr`
-- `--signal-kind push|scz`
-- `--scope full_run|pit_band`
-- `--pit-speed-band slow|fast`
-- `--full-run-axis global_samples|distancelap`
-- `--show-delta`
-
 If both direct and ML offset summaries exist, the plotter can compare:
 
 - original real
@@ -271,39 +242,16 @@ If both direct and ML offset summaries exist, the plotter can compare:
 
 This newer workflow supports `corner`, `straight`, or combined segment extraction.
 
-### Build straight-only tables from offseted data
-
-```bash
-.venv/bin/python -m src.data.build_push_segment_tables \
-  --run-number 46 \
-  --amount-source ml \
-  --segment-labels straight
-```
-
-### Build straight-only tables from frozen pre-offset data
-
-```bash
-.venv/bin/python -m src.data.build_push_segment_tables \
-  --run-number 46 \
-  --amount-source frozen \
-  --segment-labels straight
-```
-
 ### Plot both on the same 3D reference surface
 
 ```bash
 .venv/bin/python -m src.data.plot_push_segment_3d \
   --run-number 46 \
-  --amount-source ml \
+  --amount-source mll \
   --compare-amount-source frozen \
   --segment-labels straight \
-  --side both
+  --side
 ```
-
-Current color convention in that comparison plot:
-
-- cyan = straight-only from offseted + SCz-recalculated dataset
-- red = straight-only from pre-offset dataset
 
 ## 11. Compare Extracted Points To The Reference Surface
 
@@ -333,30 +281,8 @@ Current baseline filtering policy:
 
 ### Despike only
 
-- `rh_f`
-- `rh_r`
-
 ### Butterworth only
 
-- `pitot_c`
-- `damper_fl_art`
-- `damper_fr_art`
-- `damper_rl_art`
-- `damper_rr_art`
-- `pushavg_c`
-- `pushavd_c`
-- `pusharg_c`
-- `pushard_c`
-
-### Neither in baseline
-
-- `pair`
-
-The frozen baseline settings are saved per run in:
-
-```text
-data/processed/Run_<run_number>/Frozen_Baseline/baseline_settings.json
-```
 
 ## 13. Recommended Working Order
 
